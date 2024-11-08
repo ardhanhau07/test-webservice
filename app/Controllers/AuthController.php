@@ -10,6 +10,8 @@ class AuthController extends BaseController
 {
     public function register()
     {
+        $json = $this->request->getJSON();
+        // log_message('debug', json_encode($this->request->getPost()));
         $userModel = new Users();
 
         // Validasi input
@@ -27,30 +29,36 @@ class AuthController extends BaseController
         }
 
         // Hash password
-        $hashedPassword = password_hash($this->request->getPost('password'), PASSWORD_DEFAULT);
+        $hashedPassword = password_hash($json->password, PASSWORD_DEFAULT);
 
         // Simpan data pengguna
         $userData = [
-            'name'     => $this->request->getPost('name'),
-            'email'    => $this->request->getPost('email'),
+            'name'     => $json->name,
+            'email'    => $json->email,
             'password' => $hashedPassword
         ];
 
-        $userModel->insert($userData);
+        $data = $userModel->insert($userData);
 
         return $this->response->setJSON([
             'status'  => ResponseInterface::HTTP_CREATED,
-            'message' => 'User registered successfully'
+            'message' => 'User registered successfully',
+            'log' => $json
         ])->setStatusCode(ResponseInterface::HTTP_CREATED);
     }
 
     public function login()
     {
+        $json = $this->request->getJSON();
         $userModel = new Users();
 
         // Ambil input
-        $email    = $this->request->getPost('email');
-        $password = $this->request->getPost('password');
+        $email    = $json->email;
+        $password = $json->password;
+
+
+        // Hash password
+        $hashedPassword = password_hash($json->password, PASSWORD_DEFAULT);
 
         // Validasi input
         if (!$email || !$password) {
@@ -63,7 +71,7 @@ class AuthController extends BaseController
         // Cari pengguna berdasarkan email
         $user = $userModel->where('email', $email)->first();
 
-        if (!$user || !password_verify($password, $user['password'])) {
+        if (!$user || $hashedPassword == $user['password']) {
             return $this->response->setJSON([
                 'status'  => ResponseInterface::HTTP_UNAUTHORIZED,
                 'message' => 'Invalid email or password'
